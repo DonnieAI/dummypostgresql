@@ -2,63 +2,48 @@ import streamlit as st
 import psycopg
 import pandas as pd
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import URL
 
 # ---------- 1) Read secrets ----------
-cfg = st.secrets["neon"]
+cfg = st.secrets["postgres"]
 
 HOST = cfg["host"]
-PORT = int(cfg.get("port", 5432))
+PORT = cfg["port"]
 DBNAME = cfg["dbname"]
 USER = cfg["user"]
 PASSWORD = cfg["password"]
-SSLMODE = cfg.get("sslmode", "require")
-CHANNEL_BINDING = cfg.get("channel_binding")  # optional
 
-st.title("Neon PostgreSQL (Streamlit secrets) test")
+st.title("PostgreSQL (Streamlit secrets) test")
 
-# ---------- 2) psycopg (v3) connection test ----------
+# ---------- 2) psycopg2 connection test ----------
 try:
-    conn_kwargs = dict(
+    conn = psycopg.connect(
         host=HOST,
         port=PORT,
         dbname=DBNAME,
         user=USER,
         password=PASSWORD,
-        sslmode=SSLMODE,
     )
-    if CHANNEL_BINDING:
-        conn_kwargs["channel_binding"] = CHANNEL_BINDING
-
-    with psycopg.connect(**conn_kwargs) as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT version();")
-            version = cur.fetchone()[0]
-
+    cur = conn.cursor()
+    cur.execute("SELECT version();")
+    version = cur.fetchone()[0]
     st.success("Database connection OK")
     st.write("PostgreSQL version:", version)
+
+    cur.close()
+    conn.close()
 
 except Exception as e:
     st.error(f"psycopg connection failed: {e}")
     st.stop()
 
-# ---------- 3) SQLAlchemy engine (psycopg v3) ----------
-query = {"sslmode": SSLMODE}
-if CHANNEL_BINDING:
-    query["channel_binding"] = CHANNEL_BINDING
-
-url = URL.create(
-    "postgresql+psycopg",
-    username=USER,
-    password=PASSWORD,
-    host=HOST,
-    port=PORT,
-    database=DBNAME,
-    query=query,
-)
-
+# ---------- 3) SQLAlchemy engine ----------
+# IMPORTANT: encode special chars in password if you build URL manually.
+# Best: use sqlalchemy URL parts OR ensure password is URL-encoded.
+#connection_string = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
+connection_string = f"postgresql+psycopg://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
 try:
-    engine = create_engine(url)
+    engine = create_engine(connection_string)
+    # simple test
     with engine.connect() as c:
         c.execute(text("SELECT 1"))
     st.success("SQLAlchemy engine OK")
@@ -67,8 +52,8 @@ except Exception as e:
     st.stop()
 
 # ---------- 4) Read a table ----------
-schema_name = st.text_input("Schema", value="EUROSTAT")
-table_name = st.text_input("Table", value="NRG_PC_203")
+schema_name = st.text_input("Schema", value="dummy_schema")
+table_name = st.text_input("Table", value="dummy_table")
 
 if st.button("Load table"):
     try:
