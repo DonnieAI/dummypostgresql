@@ -1,5 +1,5 @@
 import streamlit as st
-import psycopg2
+import psycopg
 import pandas as pd
 from sqlalchemy import create_engine, text
 
@@ -16,7 +16,7 @@ st.title("PostgreSQL (Streamlit secrets) test")
 
 # ---------- 2) psycopg2 connection test ----------
 try:
-    conn = psycopg2.connect(
+    conn = psycopg.connect(
         host=HOST,
         port=PORT,
         dbname=DBNAME,
@@ -33,14 +33,14 @@ try:
     conn.close()
 
 except Exception as e:
-    st.error(f"psycopg2 connection failed: {e}")
+    st.error(f"psycopg connection failed: {e}")
     st.stop()
 
 # ---------- 3) SQLAlchemy engine ----------
 # IMPORTANT: encode special chars in password if you build URL manually.
 # Best: use sqlalchemy URL parts OR ensure password is URL-encoded.
-connection_string = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
-
+#connection_string = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
+connection_string = f"postgresql+psycopg://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
 try:
     engine = create_engine(connection_string)
     # simple test
